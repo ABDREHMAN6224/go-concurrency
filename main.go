@@ -1,5 +1,10 @@
 package main
 
+import (
+	"fmt"
+	"time"
+)
+
 func main() {
 	var or func(channels ...<-chan any) <-chan any
 
@@ -32,4 +37,22 @@ func main() {
 		}()
 		return orDone
 	}
+
+	sig := func(after time.Duration) <-chan any {
+		c := make(chan any)
+		go func() {
+			defer close(c)
+			time.Sleep(after)
+		}()
+		return c
+	}
+	start := time.Now()
+	<-or(
+		sig(2*time.Hour),
+		sig(5*time.Minute),
+		sig(1*time.Second),
+		sig(1*time.Hour),
+		sig(1*time.Minute),
+	)
+	fmt.Printf("done after %v", time.Since(start).Seconds())
 }
