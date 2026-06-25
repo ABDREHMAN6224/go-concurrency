@@ -54,7 +54,7 @@ func GoRoutineLeakFixed() {
 	fmt.Println("Done.")
 }
 
-func exmaple2Bad() {
+func exmaple2() {
 	newRandStream := func(done <-chan any) <-chan int {
 		randStream := make(chan int)
 		go func() {
@@ -83,5 +83,5 @@ func exmaple2Bad() {
 func main() {
 	// GoRoutineLeak()
 	// GoRoutineLeakFixed()
-	exmaple2Bad()
+	exmaple2()
 }
