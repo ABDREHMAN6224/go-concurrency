@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"time"
 )
 
@@ -53,7 +54,34 @@ func GoRoutineLeakFixed() {
 	fmt.Println("Done.")
 }
 
+func exmaple2Bad() {
+	newRandStream := func(done <-chan any) <-chan int {
+		randStream := make(chan int)
+		go func() {
+			defer fmt.Println("newRandStream closure exited.")
+			defer close(randStream)
+			for {
+				select {
+				case <-done:
+					return
+				case randStream <- rand.Int():
+				}
+			}
+		}()
+		return randStream
+	}
+	done := make(chan any)
+	randStream := newRandStream(done)
+	fmt.Println("3 random ints:")
+	for i := 1; i <= 3; i++ {
+		fmt.Printf("%d: %d\n", i, <-randStream)
+	}
+	close(done)
+	time.Sleep(time.Second)
+}
+
 func main() {
 	// GoRoutineLeak()
-	GoRoutineLeakFixed()
+	// GoRoutineLeakFixed()
+	exmaple2Bad()
 }
