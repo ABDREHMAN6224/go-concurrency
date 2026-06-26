@@ -1,5 +1,53 @@
 package main
 
 func main() {
+	orDone := func(done <-chan any, stream <-chan any) <-chan any {
+		newStream := make(chan any)
+		go func() {
+			defer close(newStream)
+			for {
+				select {
+				case <-done:
+					return
+				case v, ok := <-stream:
+					if ok == false {
+						return
+					}
+					select {
+					case <-done:
+						return
+					case newStream <- v:
+					}
+				}
+			}
+		}()
+		return newStream
+	}
+	bridge := func(done <-chan any, chanStream <-chan <-chan any) <-chan any {
+		valStream := make(chan any)
+		go func() {
+			defer close(valStream)
+			for {
+				var stream <-chan any
+				select {
+				case <-done:
+					return
+				case maybeStream, ok := <-chanStream:
+					if ok == false {
+						return
+					}
+					stream = maybeStream
+				}
+				for val := range orDone(done, stream) {
+					select {
+					case valStream <- val:
+					case <-done:
+						return
 
+					}
+				}
+			}
+		}()
+		return valStream
+	}
 }
