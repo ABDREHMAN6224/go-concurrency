@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"time"
+	"math/rand/v2"
 )
 
 func addMulPipelien() {
@@ -57,49 +57,46 @@ func addMulPipelien() {
 	}
 }
 
-func takeRepeatValues() {
+func take(done <-chan any, valueStream <-chan any, nums int) <-chan any {
+	takeStream := make(chan any)
+	go func() {
+		defer close(takeStream)
+		for range nums {
+			select {
+			case <-done:
+				return
+			case takeStream <- <-valueStream:
+			}
+		}
+	}()
+	return takeStream
+}
 
-	repeat := func(done <-chan any, values ...int) <-chan int {
-		stream := make(chan int)
+func takeRepeatFunc() {
+	repeat := func(done <-chan any, fn func() any) <-chan any {
+		stream := make(chan any)
 		go func() {
 			defer close(stream)
 			for {
-				for _, v := range values {
-					select {
-					case <-done:
-						return
-					case stream <- v:
-					}
+				select {
+				case stream <- fn():
+				case <-done:
+					return
+
 				}
 			}
 		}()
 		return stream
 	}
-	take := func(done <-chan any, valueStream <-chan int, nums int) <-chan int {
-		takeStream := make(chan int)
-		go func() {
-			defer close(takeStream)
-			for range nums {
-				select {
-				case <-done:
-					return
-				case takeStream <- <-valueStream:
-				}
-			}
-		}()
-		return takeStream
-	}
 	done := make(chan any)
-	go func() {
-		defer close(done)
-		time.Sleep(1 * time.Second)
-	}()
-	for i := range take(done, repeat(done, 1), 10) {
-		fmt.Println(i)
+	defer close(done)
+	rand := func() any { return rand.Int() }
+	for num := range take(done, repeat(done, rand), 10) {
+		fmt.Println(num)
 	}
 }
 
 func main() {
 	// addMulPipelien()
-	takeRepeatValues()
+	takeRepeatFunc()
 }
