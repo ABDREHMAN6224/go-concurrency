@@ -1,8 +1,11 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
-func main() {
+func addMulPipelien() {
 	generator := func(done <-chan any, integers ...int) <-chan int {
 		intStream := make(chan int)
 		go func() {
@@ -52,4 +55,37 @@ func main() {
 	for v := range pipeline {
 		fmt.Println(v)
 	}
+}
+
+func repeatValues() {
+
+	repeat := func(done <-chan any, values ...int) <-chan int {
+		stream := make(chan int)
+		go func() {
+			defer close(stream)
+			for {
+				for _, v := range values {
+					select {
+					case <-done:
+						return
+					case stream <- v:
+					}
+				}
+			}
+		}()
+		return stream
+	}
+	done := make(chan any)
+	go func() {
+		defer close(done)
+		time.Sleep(1 * time.Second)
+	}()
+	for i := range repeat(done, 1, 2, 3, 4, 5) {
+		fmt.Println(i)
+	}
+}
+
+func main() {
+	// addMulPipelien()
+	// repeatValues()
 }
