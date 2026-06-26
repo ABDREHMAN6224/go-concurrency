@@ -96,8 +96,26 @@ func takeRepeatFunc() {
 	}
 }
 
+func repeat(done <-chan any, values ...int) <-chan any {
+	stream := make(chan any)
+	go func() {
+		defer close(stream)
+		for {
+			for _, v := range values {
+
+				select {
+				case <-done:
+					return
+				case stream <- v:
+				}
+			}
+		}
+	}()
+	return stream
+}
+
 func main() {
-	orDone := func(done, c <-chan any) <-chan any {
+	orDone := func(done <-chan any, c <-chan any) <-chan any {
 		valStream := make(chan any)
 		go func() {
 			defer close(valStream)
@@ -105,10 +123,47 @@ func main() {
 				select {
 				case <-done:
 					return
-				case valStream <- c:
+				case v, ok := <-c:
+					if ok == false {
+						return
+					}
+					select {
+					case valStream <- v:
+					case <-done:
+					}
 				}
 			}
 		}()
 		return valStream
+	}
+	tee := func(
+		done <-chan any,
+		in <-chan any,
+	) (_, _ <-chan any) {
+		out1 := make(chan any)
+		out2 := make(chan any)
+		go func() {
+			defer close(out1)
+			defer close(out2)
+			for val := range orDone(done, in) {
+				var out1, out2 = out1, out2
+				for i := 0; i < 2; i++ {
+					select {
+					case <-done:
+					case out1 <- val:
+						out1 = nil
+					case out2 <- val:
+						out2 = nil
+					}
+				}
+			}
+		}()
+		return out1, out2
+	}
+	done := make(chan any)
+	defer close(done)
+	out1, out2 := tee(done, take(done, repeat(done, 1, 2), 4))
+	for val1 := range out1 {
+		fmt.Printf("out1: %v, out2: %v\n", val1, <-out2)
 	}
 }
