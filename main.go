@@ -57,7 +57,7 @@ func addMulPipelien() {
 	}
 }
 
-func repeatValues() {
+func takeRepeatValues() {
 
 	repeat := func(done <-chan any, values ...int) <-chan int {
 		stream := make(chan int)
@@ -75,17 +75,31 @@ func repeatValues() {
 		}()
 		return stream
 	}
+	take := func(done <-chan any, valueStream <-chan int, nums int) <-chan int {
+		takeStream := make(chan int)
+		go func() {
+			defer close(takeStream)
+			for range nums {
+				select {
+				case <-done:
+					return
+				case takeStream <- <-valueStream:
+				}
+			}
+		}()
+		return takeStream
+	}
 	done := make(chan any)
 	go func() {
 		defer close(done)
 		time.Sleep(1 * time.Second)
 	}()
-	for i := range repeat(done, 1, 2, 3, 4, 5) {
+	for i := range take(done, repeat(done, 1), 10) {
 		fmt.Println(i)
 	}
 }
 
 func main() {
 	// addMulPipelien()
-	// repeatValues()
+	takeRepeatValues()
 }
