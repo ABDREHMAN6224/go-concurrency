@@ -97,6 +97,18 @@ func takeRepeatFunc() {
 }
 
 func main() {
-	// addMulPipelien()
-	takeRepeatFunc()
+	orDone := func(done, c <-chan any) <-chan any {
+		valStream := make(chan any)
+		go func() {
+			defer close(valStream)
+			for {
+				select {
+				case <-done:
+					return
+				case valStream <- c:
+				}
+			}
+		}()
+		return valStream
+	}
 }
