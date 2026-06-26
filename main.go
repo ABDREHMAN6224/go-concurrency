@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 func main() {
 	orDone := func(done <-chan any, stream <-chan any) <-chan any {
 		newStream := make(chan any)
@@ -49,5 +51,22 @@ func main() {
 			}
 		}()
 		return valStream
+	}
+
+	genVals := func() <-chan <-chan any {
+		chanStream := make(chan (<-chan any))
+		go func() {
+			defer close(chanStream)
+			for i := range 10 {
+				stream := make(chan any, 1)
+				stream <- i
+				close(stream)
+				chanStream <- stream
+			}
+		}()
+		return chanStream
+	}
+	for v := range bridge(nil, genVals()) {
+		fmt.Printf("%v ", v)
 	}
 }
